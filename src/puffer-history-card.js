@@ -1,6 +1,7 @@
 import { tempToColor, tempToRGB } from './temperature-color.js'
 
 const HOURS_OPTIONS = [24, 48, 168]
+const REFRESH_INTERVAL_MS = 15 * 60 * 1000
 
 class PufferHistoryCard extends HTMLElement {
   constructor() {
@@ -15,12 +16,25 @@ class PufferHistoryCard extends HTMLElement {
     if (!config.sensors || config.sensors.length < 1) {
       throw new Error('puffer-history-card: sensors array required')
     }
-    this._config = { min_temp: 20, max_temp: 95, ...config }
+    this._config = { min_temp: 20, max_temp: 95, view: 'ribbons', ...config }
+    if (this._config.view === 'heatmap') {
+      this.shadowRoot.innerHTML = '<puffer-history-surface id="surface"></puffer-history-surface>'
+      this._surfaceCard = this.shadowRoot.getElementById('surface')
+      this._surfaceCard.setConfig(this._config)
+      if (this._hass) this._surfaceCard.hass = this._hass
+      return
+    }
+    this._surfaceCard = null
     this._render()
     if (this._hass) this._loadHistory()
   }
 
   set hass(hass) {
+    if (this._config?.view === 'heatmap') {
+      this._hass = hass
+      if (this._surfaceCard) this._surfaceCard.hass = hass
+      return
+    }
     const first = !this._hass
     this._hass = hass
     if (first) this._loadHistory()
@@ -29,10 +43,14 @@ class PufferHistoryCard extends HTMLElement {
   connectedCallback() {
     this._ro = new ResizeObserver(() => this._drawChart())
     this._ro.observe(this)
+    this._refreshTimer = setInterval(() => {
+      if (this._config?.view !== 'heatmap') this._loadHistory()
+    }, REFRESH_INTERVAL_MS)
   }
 
   disconnectedCallback() {
     if (this._ro) { this._ro.disconnect(); this._ro = null }
+    if (this._refreshTimer) { clearInterval(this._refreshTimer); this._refreshTimer = null }
   }
 
   _render() {

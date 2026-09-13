@@ -2,8 +2,9 @@ import { tempToColor, tempToRGB } from './temperature-color.js'
 
 const HOURS_OPTIONS = [24, 48, 168]
 const HOUR_MS = 60 * 60 * 1000
+const REFRESH_INTERVAL_MS = 15 * 60 * 1000
 
-class PufferHeatmapCard extends HTMLElement {
+class PufferHistorySurface extends HTMLElement {
   constructor() {
     super()
     this.attachShadow({ mode: 'open' })
@@ -14,7 +15,7 @@ class PufferHeatmapCard extends HTMLElement {
 
   setConfig(config) {
     if (!config.sensors || config.sensors.length < 1) {
-      throw new Error('puffer-heatmap-card: sensors array required')
+      throw new Error('puffer-history-card: sensors array required')
     }
     this._config = { min_temp: 20, max_temp: 95, ...config }
     this._render()
@@ -30,10 +31,12 @@ class PufferHeatmapCard extends HTMLElement {
   connectedCallback() {
     this._ro = new ResizeObserver(() => this._drawChart())
     this._ro.observe(this)
+    this._refreshTimer = setInterval(() => this._loadHistory(), REFRESH_INTERVAL_MS)
   }
 
   disconnectedCallback() {
     if (this._ro) { this._ro.disconnect(); this._ro = null }
+    if (this._refreshTimer) { clearInterval(this._refreshTimer); this._refreshTimer = null }
   }
 
   _render() {
@@ -88,7 +91,7 @@ class PufferHeatmapCard extends HTMLElement {
       })
       this._drawChart()
     } catch (error) {
-      console.error('[puffer-heatmap-card]', error)
+      console.error('[puffer-history-card]', error)
     } finally {
       this._loading = false
     }
@@ -476,4 +479,4 @@ class PufferHeatmapCard extends HTMLElement {
   }
 }
 
-customElements.define('puffer-heatmap-card', PufferHeatmapCard)
+customElements.define('puffer-history-surface', PufferHistorySurface)

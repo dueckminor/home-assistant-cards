@@ -151,6 +151,7 @@ class PufferStateCard extends HTMLElement {
 customElements.define('puffer-state-card', PufferStateCard);
 
 const HOURS_OPTIONS$1 = [24, 48, 168];
+const REFRESH_INTERVAL_MS$1 = 15 * 60 * 1000;
 
 class PufferHistoryCard extends HTMLElement {
   constructor() {
@@ -165,12 +166,25 @@ class PufferHistoryCard extends HTMLElement {
     if (!config.sensors || config.sensors.length < 1) {
       throw new Error('puffer-history-card: sensors array required')
     }
-    this._config = { min_temp: 20, max_temp: 95, ...config };
+    this._config = { min_temp: 20, max_temp: 95, view: 'ribbons', ...config };
+    if (this._config.view === 'heatmap') {
+      this.shadowRoot.innerHTML = '<puffer-history-surface id="surface"></puffer-history-surface>';
+      this._surfaceCard = this.shadowRoot.getElementById('surface');
+      this._surfaceCard.setConfig(this._config);
+      if (this._hass) this._surfaceCard.hass = this._hass;
+      return
+    }
+    this._surfaceCard = null;
     this._render();
     if (this._hass) this._loadHistory();
   }
 
   set hass(hass) {
+    if (this._config?.view === 'heatmap') {
+      this._hass = hass;
+      if (this._surfaceCard) this._surfaceCard.hass = hass;
+      return
+    }
     const first = !this._hass;
     this._hass = hass;
     if (first) this._loadHistory();
@@ -179,10 +193,14 @@ class PufferHistoryCard extends HTMLElement {
   connectedCallback() {
     this._ro = new ResizeObserver(() => this._drawChart());
     this._ro.observe(this);
+    this._refreshTimer = setInterval(() => {
+      if (this._config?.view !== 'heatmap') this._loadHistory();
+    }, REFRESH_INTERVAL_MS$1);
   }
 
   disconnectedCallback() {
     if (this._ro) { this._ro.disconnect(); this._ro = null; }
+    if (this._refreshTimer) { clearInterval(this._refreshTimer); this._refreshTimer = null; }
   }
 
   _render() {
@@ -468,8 +486,9 @@ customElements.define('puffer-history-card', PufferHistoryCard);
 
 const HOURS_OPTIONS = [24, 48, 168];
 const HOUR_MS = 60 * 60 * 1000;
+const REFRESH_INTERVAL_MS = 15 * 60 * 1000;
 
-class PufferHeatmapCard extends HTMLElement {
+class PufferHistorySurface extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: 'open' });
@@ -480,7 +499,7 @@ class PufferHeatmapCard extends HTMLElement {
 
   setConfig(config) {
     if (!config.sensors || config.sensors.length < 1) {
-      throw new Error('puffer-heatmap-card: sensors array required')
+      throw new Error('puffer-history-card: sensors array required')
     }
     this._config = { min_temp: 20, max_temp: 95, ...config };
     this._render();
@@ -496,10 +515,12 @@ class PufferHeatmapCard extends HTMLElement {
   connectedCallback() {
     this._ro = new ResizeObserver(() => this._drawChart());
     this._ro.observe(this);
+    this._refreshTimer = setInterval(() => this._loadHistory(), REFRESH_INTERVAL_MS);
   }
 
   disconnectedCallback() {
     if (this._ro) { this._ro.disconnect(); this._ro = null; }
+    if (this._refreshTimer) { clearInterval(this._refreshTimer); this._refreshTimer = null; }
   }
 
   _render() {
@@ -554,7 +575,7 @@ class PufferHeatmapCard extends HTMLElement {
       });
       this._drawChart();
     } catch (error) {
-      console.error('[puffer-heatmap-card]', error);
+      console.error('[puffer-history-card]', error);
     } finally {
       this._loading = false;
     }
@@ -942,7 +963,7 @@ class PufferHeatmapCard extends HTMLElement {
   }
 }
 
-customElements.define('puffer-heatmap-card', PufferHeatmapCard);
+customElements.define('puffer-history-surface', PufferHistorySurface);
 
 console.info(
   '%c HOME-ASSISTANT-CARDS %c puffer-card loaded',
