@@ -1,4 +1,4 @@
-import { tempToColor, tempToRGB } from './temperature-color.js'
+import { tempToRGB } from './temperature-color.js'
 
 const HOURS_OPTIONS = [24, 48, 168]
 const REFRESH_INTERVAL_MS = 15 * 60 * 1000
@@ -224,7 +224,6 @@ class PufferHistoryCard extends HTMLElement {
     ctx.lineTo(PAD_L + chartW, timeAxisY)
     ctx.stroke()
     const rearTimeAxisY = toY(max_temp, N - 1)
-    const rearTimeAxisStart = toX(tStart, N - 1)
     for (let z = 1; z < N; z++) {
       ctx.beginPath()
       ctx.moveTo(toX(tStart, z), toY(max_temp, z))
