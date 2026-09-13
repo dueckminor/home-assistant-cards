@@ -1,4 +1,4 @@
-import { tempToColor, tempToHex } from './temperature-color.js'
+import { tempToColor } from './temperature-color.js'
 
 class PufferStateCard extends HTMLElement {
   constructor() {
