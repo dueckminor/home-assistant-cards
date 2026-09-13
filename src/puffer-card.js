@@ -1,5 +1,6 @@
 import './puffer-state-card.js'
 import './puffer-history-card.js'
+import './puffer-heatmap-card.js'
 
 console.info(
   '%c HOME-ASSISTANT-CARDS %c puffer-card loaded',
