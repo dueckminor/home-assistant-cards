@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -eou pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+# Determine HA host — override by writing the hostname into gen/ha.txt
+HA_HOST="homeassistant.local"
+HA_TXT="${ROOT_DIR}/gen/ha.txt"
+if [[ -f "${HA_TXT}" ]]; then
+  HA_HOST="$(cat "${HA_TXT}")"
+fi
+
+echo "🔨 Building..."
+cd "${ROOT_DIR}"
+npm run build
+
+echo "🚀 Installing to ${HA_HOST}..."
+if [[ "${HA_HOST}" == "localhost" ]]; then
+  mkdir -p /config/www
+  cp "${ROOT_DIR}/dist/puffer-card.js" /config/www/puffer-card.js
+else
+  tar -C "${ROOT_DIR}/dist" -cf - puffer-card.js |
+    ssh "hassio@${HA_HOST}" "sudo tar -xf - -C /config/www"
+fi
+
+echo "✅ Done! Reload Lovelace resources in HA to pick up the new version."

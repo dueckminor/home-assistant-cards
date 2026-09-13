@@ -1,0 +1,13 @@
+{
+  "name": "home-assistant-cards",
+  "version": "0.1.0",
+  "description": "Custom Lovelace cards for Home Assistant",
+  "type": "module",
+  "scripts": {
+    "build": "rollup -c",
+    "dev": "rollup -c --watch"
+  },
+  "devDependencies": {
+    "rollup": "^4.0.0"
+  }
+}
