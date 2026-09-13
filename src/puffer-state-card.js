@@ -24,12 +24,10 @@ class PufferStateCard extends HTMLElement {
     // Rows are rendered top-to-bottom = sensor N (hottest) down to sensor 1 (coldest)
     const rows = [...sensors].reverse().map((entityId, i) => {
       const idx = sensors.length - 1 - i
-      const label = entityId.split('.').pop()
       return `
         <div class="row" id="row-${idx}">
           <div class="color-bar" id="bar-${idx}"></div>
           <div class="temp" id="temp-${idx}">–</div>
-          <div class="name">${label}</div>
         </div>`
     }).join('')
 
@@ -79,13 +77,6 @@ class PufferStateCard extends HTMLElement {
           font-weight: 600;
           font-variant-numeric: tabular-nums;
           min-width: 65px;
-        }
-        .name {
-          font-size: 11px;
-          color: var(--secondary-text-color, #888);
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
         }
       </style>
       <ha-card>

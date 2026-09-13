@@ -224,11 +224,19 @@ class PufferHistoryCard extends HTMLElement {
     // --- Sensor ribbons: draw back to front ---
     for (let z = N - 1; z >= 0; z--) {
       const entityId = sensors[z]   // z=0 → sensors[0] = sensor1 (front)
-      const series = (this._data[entityId] || []).filter(p => p.t >= tStart && p.t <= tEnd)
-      if (series.length < 2) continue
+      const samples = (this._data[entityId] || []).filter(p => p.t >= tStart && p.t <= tEnd)
+      if (samples.length === 0) continue
+
+      // Home Assistant only records changes. Hold the last value through the
+      // chart end so every ribbon shares the same right edge.
+      const lastSample = samples[samples.length - 1]
+      const series = lastSample.t < tEnd
+        ? [...samples, { t: tEnd, v: lastSample.v }]
+        : samples
 
       const avgTemp = series.reduce((s, p) => s + p.v, 0) / series.length
       const { r, g, b } = tempToRGB(avgTemp, min_temp, max_temp)
+      const edgeColor = `rgb(${Math.round(r * 0.65)},${Math.round(g * 0.65)},${Math.round(b * 0.65)})`
 
       const xs = series.map(p => toX(p.t, z))
       const ys = series.map(p => toY(p.v, z))
@@ -241,21 +249,33 @@ class PufferHistoryCard extends HTMLElement {
       for (let i = 1; i < series.length; i++) ctx.lineTo(xs[i], ys[i])
       ctx.lineTo(xs[xs.length - 1], fy)
       ctx.closePath()
-      ctx.fillStyle = `rgba(${r},${g},${b},0.30)`
+      ctx.fillStyle = `rgb(${r},${g},${b})`
       ctx.fill()
 
       // Baseline
       ctx.beginPath()
       ctx.moveTo(xs[0], fy)
       ctx.lineTo(xs[xs.length - 1], fy)
-      ctx.strokeStyle = `rgba(${r},${g},${b},0.5)`
+      ctx.strokeStyle = edgeColor
       ctx.lineWidth = 1
+      ctx.stroke()
+
+      // Vertical borders at the history range boundaries
+      ctx.beginPath()
+      ctx.moveTo(xs[0], fy)
+      ctx.lineTo(xs[0], ys[0])
+      ctx.moveTo(xs[xs.length - 1], ys[ys.length - 1])
+      ctx.lineTo(xs[xs.length - 1], fy)
       ctx.stroke()
 
       // Top edge — one gradient stroke per ribbon
       const grad = ctx.createLinearGradient(xs[0], 0, xs[xs.length - 1], 0)
       series.forEach((p, i) => {
-        grad.addColorStop(i / (series.length - 1), tempToColor(p.v, min_temp, max_temp))
+        const edge = tempToRGB(p.v, min_temp, max_temp)
+        grad.addColorStop(
+          i / (series.length - 1),
+          `rgb(${Math.round(edge.r * 0.65)},${Math.round(edge.g * 0.65)},${Math.round(edge.b * 0.65)})`
+        )
       })
       ctx.beginPath()
       ctx.moveTo(xs[0], ys[0])
@@ -263,14 +283,6 @@ class PufferHistoryCard extends HTMLElement {
       ctx.strokeStyle = grad
       ctx.lineWidth = 2
       ctx.stroke()
-
-      // Sensor label at right edge
-      const lx = xs[xs.length - 1] + 4
-      const ly = ys[ys.length - 1]
-      ctx.fillStyle = `rgb(${r},${g},${b})`
-      ctx.font = 'bold 10px sans-serif'
-      ctx.textAlign = 'left'
-      ctx.fillText(`S${z + 1}`, lx, ly + 4)
     }
   }
 }
