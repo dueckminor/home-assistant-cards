@@ -141,6 +141,9 @@ class PufferHistoryCard extends HTMLElement {
 
     const ctx = canvas.getContext('2d')
     ctx.clearRect(0, 0, W, H)
+    const theme = getComputedStyle(this)
+    const scaleTextColor = theme.getPropertyValue('--secondary-text-color').trim() || '#888'
+    const scaleLineColor = theme.getPropertyValue('--divider-color').trim() || '#ccc'
 
     // Padding (room for axes and depth layers above/right)
     const PAD_L = 42
@@ -169,48 +172,64 @@ class PufferHistoryCard extends HTMLElement {
 
     // --- Temperature axis (left, front layer) ---
     const tempStep = chartH > 160 ? 10 : 20
-    ctx.strokeStyle = 'rgba(0,0,0,0.12)'
+    ctx.strokeStyle = scaleLineColor
     ctx.lineWidth = 1
     ctx.beginPath()
     ctx.moveTo(PAD_L, PAD_T + totalDY)
     ctx.lineTo(PAD_L, floorY(0))
     ctx.stroke()
 
-    ctx.fillStyle = 'rgba(0,0,0,0.45)'
+    ctx.fillStyle = scaleTextColor
     ctx.font = '10px sans-serif'
     ctx.textAlign = 'right'
     for (let t = Math.ceil(min_temp / tempStep) * tempStep; t <= max_temp; t += tempStep) {
-      const y = toY(t, 0)
-      ctx.strokeStyle = 'rgba(0,0,0,0.06)'
+      const frontY = toY(t, 0)
+      const rearY = toY(t, N - 1)
+      ctx.strokeStyle = scaleLineColor
       ctx.beginPath()
-      ctx.moveTo(PAD_L, y)
-      ctx.lineTo(PAD_L + chartW, y)
+      ctx.moveTo(toX(tStart, N - 1), rearY)
+      ctx.lineTo(toX(tEnd, N - 1), rearY)
       ctx.stroke()
-      ctx.strokeStyle = 'rgba(0,0,0,0.12)'
+      ctx.strokeStyle = scaleLineColor
       ctx.beginPath()
-      ctx.moveTo(PAD_L - 3, y)
-      ctx.lineTo(PAD_L, y)
+      ctx.moveTo(PAD_L - 3, frontY)
+      ctx.lineTo(PAD_L, frontY)
       ctx.stroke()
-      ctx.fillText(`${t}°`, PAD_L - 5, y + 3)
+      ctx.fillText(`${t}°`, PAD_L - 5, frontY + 3)
     }
 
     // --- Time axis (bottom, front layer) ---
     const timeAxisY = floorY(0)
-    ctx.strokeStyle = 'rgba(0,0,0,0.12)'
+    ctx.strokeStyle = scaleLineColor
     ctx.beginPath()
     ctx.moveTo(PAD_L, timeAxisY)
     ctx.lineTo(PAD_L + chartW, timeAxisY)
     ctx.stroke()
+    const rearTimeAxisY = toY(max_temp, N - 1)
+    const rearTimeAxisStart = toX(tStart, N - 1)
+    for (let z = 1; z < N; z++) {
+      ctx.beginPath()
+      ctx.moveTo(toX(tStart, z), toY(max_temp, z))
+      ctx.lineTo(toX(tStart, z), floorY(z))
+      ctx.stroke()
+    }
+    for (let t = Math.ceil(min_temp / tempStep) * tempStep; t <= max_temp; t += tempStep) {
+      ctx.beginPath()
+      ctx.moveTo(toX(tStart, 0), toY(t, 0))
+      ctx.lineTo(toX(tStart, N - 1), toY(t, N - 1))
+      ctx.stroke()
+    }
 
     const hourStep = this._hours <= 24 ? 4 : this._hours <= 48 ? 8 : 24
     ctx.textAlign = 'center'
-    ctx.fillStyle = 'rgba(0,0,0,0.45)'
+    ctx.fillStyle = scaleTextColor
     const tickStart = new Date(tStart)
     tickStart.setMinutes(0, 0, 0)
     tickStart.setHours(tickStart.getHours() + hourStep)
     for (let d = new Date(tickStart); d.getTime() <= tEnd; d.setHours(d.getHours() + hourStep)) {
       const x = toX(d.getTime(), 0)
-      ctx.strokeStyle = 'rgba(0,0,0,0.12)'
+      const rearX = toX(d.getTime(), N - 1)
+      ctx.strokeStyle = scaleLineColor
       ctx.beginPath()
       ctx.moveTo(x, timeAxisY)
       ctx.lineTo(x, timeAxisY + 4)
@@ -219,6 +238,15 @@ class PufferHistoryCard extends HTMLElement {
         ? d.getHours().toString().padStart(2, '0') + ':00'
         : `${d.getDate()}.${(d.getMonth() + 1).toString().padStart(2, '0')}.`
       ctx.fillText(lbl, x, timeAxisY + 14)
+      ctx.beginPath()
+      ctx.moveTo(rearX, rearTimeAxisY)
+      ctx.lineTo(rearX, floorY(N - 1))
+      ctx.stroke()
+      ctx.beginPath()
+      ctx.moveTo(x, timeAxisY)
+      ctx.lineTo(rearX, floorY(N - 1))
+      ctx.stroke()
+      ctx.fillText(lbl, rearX, rearTimeAxisY - 4)
     }
 
     // --- Sensor ribbons: draw back to front ---
